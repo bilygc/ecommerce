@@ -1,26 +1,104 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React, {useState, useEffect} from 'react'
+import { commerce } from './lib/commerce';
+import { Navbar, Cart, Products, Checkout } from './components';
+import Alert from './components/Alert/Alert'
+import StickyFooter from './components/Footer/Footer';
+import { BrowserRouter as Router, Switch, Route } from 'react-router-dom'
 
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+
+const App = () => {
+
+    const [products, setProducts] = useState([])
+    const [cart, setCart] = useState({})
+    const [order, setOrder] = useState({})
+    const [errorMessage, seterrorMessage] = useState('')
+
+    const fetchProducts = async () =>{
+        const { data } = await commerce.products.list()
+        setProducts(data)
+    }
+
+    const fetchCart = async () =>{
+        setCart(await commerce.cart.retrieve())
+    }
+
+    const handleAddToCart = async (productId, quantity) => {
+        const item = await commerce.cart.add(productId, quantity)
+        setCart(item.cart)
+    }
+
+    const handleUpdateCartQty = async (productId, qty) => {        
+        const {cart} = await commerce.cart.update(productId, {quantity: qty})
+        setCart(cart)
+        
+    }
+
+    const handleRmoveFromCart = async (productId) =>{        
+        const {cart} = await commerce.cart.remove(productId)
+        setCart(cart)
+    }
+
+    const handleEmptyCart = async () => {
+        const {cart} = await commerce.cart.empty()
+        setCart(cart)
+    }
+
+    const refreshCart = async () => {
+        const newCart = await commerce.cart.refresh()
+        setCart(newCart)
+    }
+
+    const handleCaptureCheckout = async (checkoutTokenId, newOrder) => {
+        try{
+            const incomingOrder = await commerce.checkout.capture(checkoutTokenId, newOrder)
+            setOrder(incomingOrder)
+            refreshCart()
+        }
+        catch(error){
+            seterrorMessage(error.data.error.message);
+            console.log("HAY ERROR AQUI: ",error.data.error.message)
+        }
+    }
+
+    const resetErrorMessage = () =>{
+        seterrorMessage('');
+    }
+    
+    useEffect(() => {
+        fetchProducts();
+        fetchCart();
+    }, [])
+
+    return (
+        <Router>
+            <div>
+                <Navbar totalItems={cart.total_items} />
+                {errorMessage.length && <Alert title="ERROR" text={errorMessage} open={true} resetErrorMessage={resetErrorMessage} /> }
+                <Switch>
+                    <Route exact path="/">
+                        <Products products={products} onAddToCart={handleAddToCart} />
+                    </Route>
+                    <Route exact path="/cart">
+                        <Cart 
+                            cart={cart} 
+                            handleUpdateCartQty={handleUpdateCartQty}
+                            handleRmoveFromCart={handleRmoveFromCart}
+                            handleEmptyCart={handleEmptyCart}
+                        />
+                    </Route>
+                    <Route exact path="/checkout" >
+                        <Checkout
+                        cart={cart}
+                        order ={order}
+                        onCaptureCheckout={handleCaptureCheckout}
+                        error={errorMessage}
+                        />
+                    </Route>
+                </Switch>
+                <StickyFooter/>
+            </div>
+        </Router>
+    )
 }
 
-export default App;
+export default App
