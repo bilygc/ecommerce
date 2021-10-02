@@ -54,7 +54,7 @@ const AddressForm = ({checkoutToken, next}) => {
         return () => {
             isMounted.current= false
         }
-    }, [])
+    },[])
 
     useEffect(() => {
         if (ShippingCountry) fetchSubdivisions(ShippingCountry, checkoutToken.id)
